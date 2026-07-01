@@ -32,7 +32,7 @@ py gemini-live.py
 4. Uygulama otomatik olarak çeviriyi ve sesi proje klasörüne kaydedecektir.
 
 ## Güvenlik
-- Google AI Studio üzerinden alınan ve girilen API anahtarı hiçbir şekilde kaynak koda veya başka bir yere kaydedilmez, her oturumda güvenli bir şekilde sadece bellekte (in-memory) tutulur.
+- "Google AI Studio" üzerinden alınan ve girilen API anahtarı hiçbir şekilde kaynak koda veya başka bir yere kaydedilmez, her oturumda güvenli bir şekilde sadece bellekte (in-memory) tutulur.
 - Çevre değişkenlerinde (Environment Variables) `GEMINI_API_KEY` tanımlıysa uygulama bunu otomatik olarak tanır.
 
 ## Hakkında
