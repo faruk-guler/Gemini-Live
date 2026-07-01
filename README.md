@@ -4,6 +4,9 @@ Bu uygulama, bilgisayarınızın mikrofonundan gelen canlı Türkçe sesi arka p
 
 Uygulama %100 "Clean Code" prensiplerine sadık kalınarak, boştayken işlemci (CPU) ve bellek (RAM) tüketimi %0 olacak şekilde maksimum optimizasyonla geliştirilmiştir.
 
+![Gemini Live Audio Translator](live.PNG)
+
+
 ## Özellikler
 
 - **Canlı ve Sessiz Çeviri:** Sesleri arayüze yansıtmadan doğrudan hedefe çevirir.
