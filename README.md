@@ -14,9 +14,9 @@ Uygulama %100 "Clean Code" prensiplerine sadık kalınarak, boştayken işlemci 
 ## Kurulum
 
 1. Bilgisayarınızda Python yüklü olduğundan emin olun.
-2. Gerekli kütüphaneleri kurmak için terminal veya komut satırında şu komutu çalıştırın:
+2. Gerekli kütüphaneleri kurmak için terminal veya komut satırında proje dizinindeyken şu komutu çalıştırın:
    ```bash
-   pip install google-genai pyaudio
+   pip install -r requirements.txt
    ```
 
 ## Kullanım
