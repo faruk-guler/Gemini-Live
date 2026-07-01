@@ -330,7 +330,7 @@ class TranslatorGUI:
         about_frame = tk.Frame(self.root, bg="#121212")
         about_frame.pack(fill="x", side="bottom", padx=20, pady=(0, 10))
         
-        tk.Label(about_frame, text="Hakkında:", bg="#121212", fg="#888888", font=("Segoe UI", 9, "bold")).pack(side="left")
+        tk.Label(about_frame, text="Page:", bg="#121212", fg="#888888", font=("Segoe UI", 9, "bold")).pack(side="left")
         
         link1 = tk.Label(about_frame, text="www.farukguler.com", bg="#121212", fg="#007acc", font=("Segoe UI", 9, "underline"), cursor="hand2")
         link1.pack(side="left", padx=10)
@@ -340,6 +340,7 @@ class TranslatorGUI:
         link2.pack(side="left", padx=5)
         link2.bind("<Button-1>", lambda e: webbrowser.open("https://github.com/faruk-guler"))
 
+        tk.Label(about_frame, text="Author: faruk-guler:", bg="#121212", fg="#888888", font=("Segoe UI", 9, "bold")).pack(side="left")
         tk.Label(self.root, text="Gemini Live Türkçe -> İngilizce", font=("Segoe UI Semibold", 15), bg="#121212", fg="#007acc").pack(pady=15)
 
         # API Anahtarı Giriş Alanı
