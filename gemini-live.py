@@ -16,6 +16,7 @@ import wave
 import datetime
 from pathlib import Path
 import webbrowser
+import random
 
 import pyaudio
 from google import genai
@@ -43,12 +44,14 @@ class LiveAudioTranslator:
     def __init__(self, client, gui_queue):
         self.client = client
         self.gui_queue = gui_queue
-        # Her oturum için benzersiz zaman damgası
-        timestamp = f"{datetime.datetime.now():%Y%m%d_%H%M%S}"
+        # Her oturum için tarih aralığı formatı ve sonrasında '-' ile ayrılmış 5 haneli rastgele harf/sayı kombinasyonu
+        random_suffix = "".join(random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=5))
+        date_suffix = f" - at {datetime.datetime.now():%Y-%m-%d}-{random_suffix}"
         
         # Çıktı dosya yollarını bu scriptin klasörüyle ilişkilendir
-        self.transcript_path = BASE_DIR / f"translated_transcript_{timestamp}.txt"
-        self.audio_path = BASE_DIR / f"translated_audio_{timestamp}.wav"
+        self.transcript_path = BASE_DIR / f"translated_transcript{date_suffix}.txt"
+        self.turkish_transcript_path = BASE_DIR / f"turkish_transcript{date_suffix}.txt"
+        self.audio_path = BASE_DIR / f"translated_audio{date_suffix}.wav"
         
         self.audio_in_queue = asyncio.Queue()
         self.out_queue = asyncio.Queue(maxsize=5)
@@ -61,15 +64,21 @@ class LiveAudioTranslator:
         self.receive_task = None
         self.play_task = None
         self.transcript_file_initialized = False
+        self.turkish_transcript_file_initialized = False
  
-    def _write_transcript_sync(self, text, is_header=False):
+    def _write_transcript_sync(self, text, is_header=False, language="en"):
         """Metin kaydını diske yazan senkron yardımcı fonksiyon."""
         try:
-            mode = "w" if is_header else "a"
-            with open(self.transcript_path, mode, encoding="utf-8") as f:
-                if is_header:
-                    f.write(f"--- CANLI ÇEVİRİ GÜNLÜĞÜ ---\nHedef Dil: English\nTarih: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}\n\n")
-                else:
+            path = self.transcript_path if language == "en" else self.turkish_transcript_path
+            if is_header:
+                exists = path.exists()
+                with open(path, "a", encoding="utf-8") as f:
+                    if exists:
+                        f.write(f"\n\n--- YENİ CANLI ÇEVİRİ GÜNLÜĞÜ ---\nHedef Dil: {'English' if language == 'en' else 'Turkish (Original)'}\nTarih: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}\n\n")
+                    else:
+                        f.write(f"--- CANLI ÇEVİRİ GÜNLÜĞÜ ---\nHedef Dil: {'English' if language == 'en' else 'Turkish (Original)'}\nTarih: {datetime.datetime.now():%Y-%m-%d %H:%M:%S}\n\n")
+            else:
+                with open(path, "a", encoding="utf-8") as f:
                     f.write(text)
         except Exception:
             pass
@@ -157,7 +166,13 @@ class LiveAudioTranslator:
                             self.audio_in_queue.put_nowait(data)
                             self.gui_queue.put({"type": "status", "val": "Gemini Konuşuyor..."})
                             
-                        text_val = response.text
+                        text_val = ""
+                        # Uyarıları (Warning: non-text parts) önlemek için response.text yerine manuel kontrol yapıyoruz
+                        if getattr(response, "server_content", None) and getattr(response.server_content, "model_turn", None):
+                            for part in response.server_content.model_turn.parts:
+                                if part.text:
+                                    text_val += part.text
+
                         if not text_val and getattr(response, "server_content", None) and getattr(response.server_content, "output_transcription", None):
                             text_val = response.server_content.output_transcription.text
 
@@ -167,16 +182,29 @@ class LiveAudioTranslator:
                             
                             # İlk veri geldiğinde dosyayı oluştur ve başlığı yaz
                             if not self.transcript_file_initialized:
-                                await asyncio.to_thread(self._write_transcript_sync, "", is_header=True)
+                                await asyncio.to_thread(self._write_transcript_sync, "", is_header=True, language="en")
                                 self.transcript_file_initialized = True
 
                             # Metni anında zaman damgalı TXT dosyasına kaydet
-                            await asyncio.to_thread(self._write_transcript_sync, text_val)
+                            await asyncio.to_thread(self._write_transcript_sync, text_val, language="en")
 
-                        # Eğer Gemini konuşma sırasını (turn) bitirdiyse, metin dosyasına ve arayüze bir alt satır ekle
+                        # Türkçe girdi transkripsiyonu (input_transcription) kontrol et
+                        input_text_val = None
+                        if getattr(response, "server_content", None) and getattr(response.server_content, "input_transcription", None):
+                            input_text_val = response.server_content.input_transcription.text
+
+                        if input_text_val:
+                            if not self.turkish_transcript_file_initialized:
+                                await asyncio.to_thread(self._write_transcript_sync, "", is_header=True, language="tr")
+                                self.turkish_transcript_file_initialized = True
+                            await asyncio.to_thread(self._write_transcript_sync, input_text_val, language="tr")
+
+                        # Eğer Gemini konuşma sırasını (turn) bitirdiyse, metin dosyalarına ve arayüze bir alt satır ekle
                         if getattr(response, "server_content", None) and getattr(response.server_content, "turn_complete", False):
                             if self.transcript_file_initialized:
-                                await asyncio.to_thread(self._write_transcript_sync, "\n")
+                                await asyncio.to_thread(self._write_transcript_sync, "\n", language="en")
+                            if self.turkish_transcript_file_initialized:
+                                await asyncio.to_thread(self._write_transcript_sync, "\n", language="tr")
                             self.gui_queue.put({"type": "transcript", "val": "\n"})
 
                     self.gui_queue.put({"type": "status", "val": "Dinleniyor..."})
@@ -226,6 +254,7 @@ class LiveAudioTranslator:
             translation_config=types.TranslationConfig(
                 target_language_code="en"
             ),
+            input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig()
         )
 
@@ -254,6 +283,15 @@ class LiveAudioTranslator:
                 await asyncio.gather(*tasks, return_exceptions=True)
                 
             self.gui_queue.put({"type": "status", "val": "Bağlantı sonlandırıldı. Dosyalar kaydedildi."})
+            
+            # Kaydedilen dosyaları GUI'ye yazdıralım
+            log_msg = f"\n--- Çeviri Tamamlandı ---\n"
+            log_msg += f"İngilizce Çeviri TXT: {self.transcript_path.name}\n"
+            if self.turkish_transcript_file_initialized:
+                log_msg += f"Türkçe Kaynak TXT: {self.turkish_transcript_path.name}\n"
+            log_msg += f"İngilizce Çeviri Ses WAV: {self.audio_path.name}\n\n"
+            self.gui_queue.put({"type": "transcript", "val": log_msg})
+            
             self.gui_queue.put({"type": "terminated"})
 
 
